@@ -2,6 +2,7 @@ const path = require('path')
 const http = require('http')
 const express = require('express')
 const socketio = require('socket.io')
+const Filter = require('bad-words')
 
 const app = express()
 const server = http.createServer(app)
@@ -12,17 +13,32 @@ const publicDirectoryPath = path.join(__dirname, '../public')
 
 app.use(express.static(publicDirectoryPath))
 
-const message = 'Welcome to the Chat App'
-
 io.on('connection', (socket) => {
-  socket.emit('message', message)
   
-  socket.on('sendMessage', (message) => {
+  socket.emit('message', 'Welcome!')
+  socket.broadcast.emit('message', 'New user has joined!')
+  
+  socket.on('sendMessage', (message, callback) => {
+    const filter = new Filter()
+
+    if (filter.isProfane(message)) {
+      return callback('Profanity is not allowed!')
+    }
+
     io.emit('message', message)
+    callback()
+  })
+
+  socket.on('sendLocation', (location, callback) => {
+    io.emit('message', `https://google.com/maps?q=${location.lat},${location.long}`)
+    callback()
+  })
+
+  socket.on('disconnect', () => {
+    io.emit('message', 'A user has left!')
   })
 
 })
-
 
 server.listen(port, () => {
   console.log('listening on port 3000')
